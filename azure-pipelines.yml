@@ -12,7 +12,7 @@ pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  GITHUB_OWNER: "Gowshi77gowshi"
+  GITHUB_OWNER: "gowshi77gowshi"
   GITHUB_REPO: "gowshi77gowshi/demo-repository"
   GITHUB_TOKEN: $(GITHUB_TOKEN)  # GitHub PAT stored securely
 
