@@ -3,7 +3,7 @@ name: Enforce Branch Naming Convention
 on:
   create:
     branches:
-      - '**'  # Trigger on any branch creation
+      - '**'  # Trigger for any branch creation
 
 jobs:
   validate-branch-name:
@@ -14,9 +14,14 @@ jobs:
           BRANCH_NAME: ${{ github.ref_name }}
         run: |
           echo "Checking branch name: $BRANCH_NAME"
-          if [[ ! "$BRANCH_NAME" =~ ^feature/MKT-[0-9]+$ ]]; then
-            echo "Branch name does not match the required pattern 'feature/MKT-<story_number>'"
+          if [[ ! "$BRANCH_NAME" =~ ^feature/MKT-[a-zA-Z0-9]+$ ]]; then
+            echo "Branch name does not match the required pattern 'feature/MKT-storynumber'."
+            echo "Deleting branch: $BRANCH_NAME"
+            git config --global user.name "GitHub Action"
+            git config --global user.email "action@github.com"
+            git push origin --delete $BRANCH_NAME
             exit 1
           else
             echo "Branch name is valid: $BRANCH_NAME"
           fi
+
