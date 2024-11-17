@@ -1,0 +1,51 @@
+trigger:
+  branches:
+    include:
+      - main
+      - feature/*
+
+pr:
+  branches:
+    include:
+      - main
+      - feature/*
+
+jobs:
+  - job: Build
+    steps:
+      # Your build steps go here
+      - task: UseNode@2
+        inputs:
+          versionSpec: '16.x'
+        displayName: 'Set up Node.js'
+
+      - script: |
+          npm install
+          npm run build
+        displayName: 'Install Dependencies and Build'
+
+  - job: NotifyFailure
+    dependsOn: Build
+    condition: failed()  # This will run only if the Build job fails
+    steps:
+      - script: |
+          echo "The pipeline failed. Creating Jira issue..."
+          
+          # Replace these variables with actual Jira details
+          JIRA_URL="https://gowsigowsalyait923.atlassian.net"
+          JIRA_PROJECT="KAN-6"
+          AUTH_TOKEN="${{ secrets.JIRA_API_TOKEN }}"
+          BUILD_LINK="https://dev.azure.com/{organization}/{project}/_build/results?buildId=$(Build.BuildId)"
+          FAILED_BRANCH="$(Build.SourceBranchName)"
+
+          curl -X POST -u "your-email@example.com:$AUTH_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "fields": {
+              "project": { "key": "'$JIRA_PROJECT'" },
+              "summary": "Pipeline Failed: '$FAILED_BRANCH'",
+              "description": "The pipeline failed for branch '$FAILED_BRANCH'. Build details: '$BUILD_LINK'",
+              "issuetype": { "name": "Bug" }
+            }
+          }' $JIRA_URL/rest/api/2/issue
+        displayName: 'Notify Jira on Failure'
