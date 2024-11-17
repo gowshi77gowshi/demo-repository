@@ -24,7 +24,7 @@ jobs:
           
       - name: Report pipeline failure to Jira
         if: failure()
-        uses: atlassian/gajira-create@v3.1.3
+        uses: atlassian/gajira-create@v3.1.0
         with:
           jira-url: ${{ secrets.JIRA_URL }}
           jira-user: ${{ secrets.JIRA_USER }}
