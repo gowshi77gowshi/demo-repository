@@ -1,59 +1,50 @@
 trigger:
-  branches:
-    include:
-      - main
-      - feature/*
+  - none  # Set to none if you want to manually trigger the pipeline or use a schedule trigger
 
-pr:
-  branches:
-    include:
-      - main
-      - feature/*
+schedules:
+  - cron: "0 0 * * 0"  # Runs every Sunday at midnight (UTC)
+    displayName: Weekly Cleanup
+    branches:
+      include:
+        - main
 
-jobs:
-  - job: Build
-    steps:
-      # Your build steps go here
-      - task: UseNode@2
-        inputs:
-          versionSpec: '16.x'
-        displayName: 'Set up Node.js'
+pool:
+  vmImage: 'ubuntu-latest'
 
-      - script: |
-          npm install
-          npm run build
-        displayName: 'Install Dependencies and Build'
+variables:
+  GITHUB_OWNER: "gowshi77gowshi"
+  GITHUB_REPO: "gowshi77gowshi/demo-repository"
+  GITHUB_TOKEN: $(GITHUB_TOKEN)  # GitHub PAT stored securely
 
-  - job: NotifyFailure
-    dependsOn: Build
-    condition: failed()  # This will run only if the Build job fails
-    steps:
-      - script: |
-          echo "The pipeline failed. Creating Jira issue..."
+steps:
+  - script: |
+      echo "Starting cleanup of branches older than 3 months..."
+      
+      # Get current date in epoch format
+      CURRENT_DATE=$(date +%s)
+      
+      # Fetch all branches with last commit date using GitHub API
+      BRANCHES=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" \
+        "https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/branches" | jq -c '.[]')
 
-          # Define variables
-          JIRA_URL="https://gowsigowsalyait923.atlassian.net"
-          JIRA_PROJECT="MKT"
-          JIRA_ISSUE_TYPE="Bug"
-          AUTH_TOKEN=$(JIRA_API_TOKEN)
-          BUILD_LINK="$(System.TeamFoundationCollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)"
-          FAILED_BRANCH="$(Build.SourceBranchName)"
-
-          # Make a POST request to Jira API to create the issue
-          curl -X POST \
-          -u "your-email@example.com:$AUTH_TOKEN" \
-          -H "Content-Type: application/json" \
-          -d '{
-                "fields": {
-                  "project": { "key": "'$JIRA_PROJECT'" },
-                  "summary": "Pipeline Failed: '$FAILED_BRANCH'",
-                  "description": "The Azure DevOps pipeline failed for branch '$FAILED_BRANCH'.\n\nBuild details: '$BUILD_LINK'",
-                  "issuetype": { "name": "'$JIRA_ISSUE_TYPE'" }
-                }
-              }' "$JIRA_URL/rest/api/2/issue"
-
-          echo "Jira issue creation request sent."
-        displayName: 'Notify Jira on Failure'
-
-
+      # Loop through each branch and check last commit date
+      for branch in ${BRANCHES}; do
+        branch_name=$(echo "${branch}" | jq -r '.name')
+        last_commit_date=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" \
+          "https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/commits/${branch_name}" | jq -r '.commit.committer.date')
+        
+        # Convert last commit date to epoch format
+        last_commit_epoch=$(date -d "${last_commit_date}" +%s)
+        
+        # Calculate age of branch in seconds
+        branch_age=$(( (CURRENT_DATE - last_commit_epoch) / 86400 ))  # Convert seconds to days
+        
+        # Delete branch if older than 90 days (3 months)
+        if [ $branch_age -gt 90 ]; then
+          echo "Deleting branch ${branch_name}, last commit date: ${last_commit_date}..."
+          curl -X DELETE -H "Authorization: token ${GITHUB_TOKEN}" \
+            "https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/refs/heads/${branch_name}"
+        fi
+      done
+    displayName: "Delete Old Branches"
 
