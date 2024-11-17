@@ -1,0 +1,39 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - '*'
+  pull_request:
+    branches:
+      - '*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Run build/test
+        run: |
+          echo "Running tests..."
+          # Simulate a build/test failure
+          exit 1  # Return a non-zero exit code to simulate failure
+          
+      - name: Report pipeline failure to Jira
+        if: failure()
+        uses: atlassian/gajira-create@v3.1.2
+        with:
+          jira-url: ${{ secrets.JIRA_URL }}
+          jira-user: ${{ secrets.JIRA_USER }}
+          jira-api-token: ${{ secrets.JIRA_API_TOKEN }}
+          project: 'MKT'
+          issue-type: 'Bug'
+          summary: 'CI Pipeline Failed'
+          description: |
+            The pipeline failed for the following commit/PR:
+            - Branch: ${{ github.ref_name }}
+            - Commit: ${{ github.sha }}
+            Please investigate.
