@@ -1,12 +1,12 @@
-name: Branch Name Validation
+name: Delete All Non-Compliant Branches
 
 on:
   create:
     branches:
-      - 'feature/*'  # Trigger on new feature branches
+      - main  # Trigger on the creation of any branch
 
 jobs:
-  validate-branch-name:
+  validate-and-delete-branches:
     runs-on: ubuntu-latest
     steps:
       - name: Set up GitHub Credentials
@@ -16,25 +16,36 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Check Branch Naming Convention
+      - name: Validate Branch Name and Delete Non-Compliant Branches
         env:
-          BRANCH_NAME: ${{ github.ref_name }}
+          CURRENT_BRANCH: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
           TOKEN: ${{ secrets.Token_git }}
         run: |
-          echo "Validating branch name: $BRANCH_NAME"
-          # Validate the branch name against the pattern 'feature/MKT-<number>'
-          if [[ ! "$BRANCH_NAME" =~ ^feature/MKT-[0-9]+$ ]]; then
-            echo "Branch name does not match the required pattern 'feature/MKT-<story_number>'"
-            echo "Deleting branch $BRANCH_NAME"
-            
-            # Delete the branch using GitHub API
-            curl -X DELETE \
-              -H "Authorization: token $TOKEN" \
+          echo "Validating branch: $CURRENT_BRANCH"
+
+          # If the current branch doesn't start with 'feature/', delete all branches
+          if [[ ! "$CURRENT_BRANCH" =~ ^feature/ ]]; then
+            echo "Branch '$CURRENT_BRANCH' is not compliant. Deleting all branches except default branch..."
+
+            # Get all branches
+            BRANCHES=$(curl -s -H "Authorization: token $TOKEN" \
               -H "Accept: application/vnd.github.v3+json" \
-              https://api.github.com/repos/$REPO/git/refs/heads/$BRANCH_NAME
-            
-            echo "Branch $BRANCH_NAME deleted"
-            exit 1
+              https://api.github.com/repos/$REPO/branches | jq -r '.[].name')
+
+            # Loop through branches and delete non-default ones
+            for BRANCH in $BRANCHES; do
+              if [[ "$BRANCH" != "$CURRENT_BRANCH" && "$BRANCH" != "main" && "$BRANCH" != "master" ]]; then
+                echo "Deleting branch: $BRANCH"
+                curl -X DELETE -s -H "Authorization: token $TOKEN" \
+                  -H "Accept: application/vnd.github.v3+json" \
+                  https://api.github.com/repos/$REPO/git/refs/heads/$BRANCH
+              else
+                echo "Skipping branch: $BRANCH"
+              fi
+            done
+
+            echo "All non-compliant branches deleted."
           else
-            echo "Branch name is valid: $BRANCH_NAME"
+            echo "Branch name is valid: $CURRENT_BRANCH"
+          fi
