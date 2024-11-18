@@ -11,7 +11,7 @@ jobs:
     steps:
       - name: Set up GitHub Credentials
         env:
-          TOKEN: ${{ secrets.Token_git }}
+          TOKEN: ${{ secrets.TOKEN_GIT }}
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -20,7 +20,7 @@ jobs:
         env:
           CURRENT_BRANCH: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
-          TOKEN: ${{ secrets.Token_git }}
+          TOKEN: ${{ secrets.TOKEN_GIT }}
         run: |
           echo "Validating branch: $CURRENT_BRANCH"
 
