@@ -1,27 +1,40 @@
-name: Enforce Branch Naming Convention
+name: Branch Name Validation
 
 on:
   create:
     branches:
-      - '**'  # Trigger for any branch creation
+      - 'feature/*'  # Trigger on new feature branches
 
 jobs:
   validate-branch-name:
     runs-on: ubuntu-latest
     steps:
-      - name: Validate Branch Naming
+      - name: Set up GitHub Credentials
+        env:
+          TOKEN: ${{ secrets.Token_git }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Check Branch Naming Convention
         env:
           BRANCH_NAME: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+          TOKEN: ${{ secrets.Token_git }}
         run: |
-          echo "Checking branch name: $BRANCH_NAME"
-          if [[ ! "$BRANCH_NAME" =~ ^feature/MKT-[a-zA-Z0-9]+$ ]]; then
-            echo "Branch name does not match the required pattern 'feature/MKT-storynumber'."
-            echo "Deleting branch: $BRANCH_NAME"
-            git config --global user.name "GitHub Action"
-            git config --global user.email "action@github.com"
-            git push origin --delete $BRANCH_NAME
+          echo "Validating branch name: $BRANCH_NAME"
+          # Validate the branch name against the pattern 'feature/MKT-<number>'
+          if [[ ! "$BRANCH_NAME" =~ ^feature/MKT-[0-9]+$ ]]; then
+            echo "Branch name does not match the required pattern 'feature/MKT-<story_number>'"
+            echo "Deleting branch $BRANCH_NAME"
+            
+            # Delete the branch using GitHub API
+            curl -X DELETE \
+              -H "Authorization: token $TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              https://api.github.com/repos/$REPO/git/refs/heads/$BRANCH_NAME
+            
+            echo "Branch $BRANCH_NAME deleted"
             exit 1
           else
             echo "Branch name is valid: $BRANCH_NAME"
-          fi
-
