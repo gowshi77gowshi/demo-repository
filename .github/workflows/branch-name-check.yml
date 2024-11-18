@@ -25,7 +25,7 @@ jobs:
           echo "Validating branch: $CURRENT_BRANCH"
 
           # If the current branch doesn't start with 'feature/', delete all branches
-          if [[ ! "$CURRENT_BRANCH" =~ ^feature/ ]]; then
+          if [[ ! "$CURRENT_BRANCH" =~ ^feature/MKT-[0-9]+$ ]]; then
             echo "Branch '$CURRENT_BRANCH' is not compliant. Deleting all branches except default branch..."
 
             # Get all branches
